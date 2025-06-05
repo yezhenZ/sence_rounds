@@ -28,6 +28,7 @@ from models.loss import Loss
 from models.painter_params import Painter, PainterOptimizer
 from IPython.display import display, SVG
 import matplotlib.pyplot as plt
+import combine
 # from torch import autograd
 
 
@@ -89,6 +90,11 @@ def main(args):
     terminate = False
 
     renderer.set_random_noise(0)
+    # if args.object_or_background_or_all=="all":
+        # args.num_paths=args.num_paths*2
+
+ 
+
     renderer.init_image(stage=0)
     renderer.save_svg(
                 f"{args.output_dir}/svg_logs", f"init_svg") # this is the inital random strokes
@@ -106,6 +112,7 @@ def main(args):
         optimizer.turn_off_points_optim()
     
     with torch.no_grad():
+        #这是经过mlp之后的
         init_sketches = renderer.get_image("init").to(args.device)
         renderer.save_svg(
                 f"{args.output_dir}", f"init")
@@ -119,9 +126,12 @@ def main(args):
         losses_dict_weighted, losses_dict_norm, losses_dict_original = loss_func(sketches, inputs.detach(), counter, renderer.get_widths(), renderer, optimizer, mode="train", width_opt=renderer.width_optim)
         loss = sum(list(losses_dict_weighted.values()))
         loss.backward()
+
         optimizer.step_()
 
         if epoch % args.save_interval == 0:
+            print(
+                f"eval iter[{epoch}/{args.num_iter}] loss[{loss.item()}] time[{time.time() - start}]")
             utils.plot_batch(inputs, sketches, f"{args.output_dir}/jpg_logs", counter,
                              use_wandb=args.use_wandb, title=f"iter{epoch}.jpg")
             renderer.save_svg(

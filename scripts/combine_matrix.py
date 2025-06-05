@@ -38,8 +38,14 @@ def copy_files(folders_arr, col_, output_subdir):
         if os.path.exists(cur_f):
             svg_filename_lst = [s_ for s_ in os.listdir(cur_f) if s_.endswith("best.svg")]#[0]
             if len(svg_filename_lst):
+
                 svg_filename = svg_filename_lst[0]
+                # print(f"11111111111111111111{svg_filename}")
+                # print(f"22222222222222222{svg_filename_lst}")
+
                 svg_path = f"{cur_f}/{svg_filename}"
+                # print(f"the name is {svg_path}")
+
                 if not_empty(svg_path):
                     new_filename = f"row{j}_col{col_}.svg"
                     print(cur_f, new_filename)
@@ -53,25 +59,33 @@ def copy_files(folders_arr, col_, output_subdir):
 def gen_matrix(output_dir, im_name, layers, rows_inds):    
     runs_folders = os.listdir(runs_dir)
     for layer, col_ in zip(layers, rows_inds):
-        layer_paths = [path for path in runs_folders if f"l{layer}" in f"_{str(path)}_" and "ratio" in path]
+        # for path in runs_folders :
+        #     print(f"the path is {path}")
+        #     print(f"layer={layer}, f'l{layer}'={f'l{layer}'}")
+        # and "ratio" in path]
+        layer_paths = [path for path in runs_folders if f"l{layer}" in f"_{str(path)}_"]
+        print(layer_paths)
         object_paths = [path for path in layer_paths if "mask" not in path]
         background_paths = [path for path in layer_paths if "mask" in path]
-        
+        # print(object_paths)
         # print(background_paths)
-        sorted_layer_paths_o = sorted(object_paths, key=lambda x: float(x.split("_")[0].replace("ratio", "")), reverse=True)
-        sorted_layer_paths_b = sorted(background_paths, key=lambda x: float(x.split("_")[0].replace("ratio", "")), reverse=True)
-        # print(sorted_layer_paths_o)
-        sorted_layer_paths_o = [f"object_l{layer}_{im_name}"] + sorted_layer_paths_o
-        sorted_layer_paths_b = [f"background_l{layer}_{im_name}_mask"] + sorted_layer_paths_b
-    
+
+        # print(background_paths)
+        # sorted_layer_paths_o = sorted(object_paths, key=lambda x: float(x.split("_")[0].replace("ratio", "")), reverse=True)
+        # sorted_layer_paths_b = sorted(background_paths, key=lambda x: float(x.split("_")[0].replace("ratio", "")), reverse=True)
+        # print(f"the is {sorted_layer_paths_o}")
+        sorted_layer_paths_o = [f"object_l{layer}_{im_name}"] + object_paths
+        sorted_layer_paths_b = [f"background_l{layer}_{im_name}_mask"] + background_paths
+        print(sorted_layer_paths_o)
+
         copy_files(sorted_layer_paths_b, col_, "background_matrix")
         copy_files(sorted_layer_paths_o, col_, "object_matrix")
         print("finished copying")
     
-    params_path = f"{output_dir}/runs/object_l11_{im_name}/resize_params.npy"
+    params_path = f"{output_dir}/runs/object_l4_{im_name}/resize_params.npy"
     if os.path.exists(params_path):
         copyfile(params_path, f"{output_dir}/object_matrix/resize_params.npy")
-    mask_path = f"{output_dir}/runs/object_l11_{im_name}/mask.png"
+    mask_path = f"{output_dir}/runs/object_l4_{im_name}/mask.png"
     if os.path.exists(mask_path):
         copyfile(mask_path, f"{output_dir}/object_matrix/mask.png")
 
@@ -92,7 +106,7 @@ def plot_matrix_svg(svgs_path, rows, cols, resize_obj, output_dir, output_name):
     for j, col_ in enumerate(cols):
         for i, row_ in enumerate(rows):
             cur_svg = f"{svgs_path}/row{row_}_col{col_}.svg"
-            print(cur_svg)
+            # print(cur_svg)
             if os.path.exists(cur_svg):
                 if not_empty(cur_svg):
                     im = scripts_utils.read_svg(cur_svg, resize_obj=resize_obj, params=params, multiply=False, device=device)
@@ -124,30 +138,47 @@ def plot_matrix_raster(im_path, rows, cols, output_dir, output_name):
 def combine_matrix(output_dir, rows, cols, output_size = 448):  
     obj_matrix_path = f"{output_dir}/object_matrix"
     back_matrix_path = f"{output_dir}/background_matrix"
-    
+    print("111111111111111111111111111")
     params_path = f"{obj_matrix_path}/resize_params.npy"
     params = None
     if os.path.exists(params_path):
         params = np.load(params_path, allow_pickle=True)[()]       
     mask_path = f"{obj_matrix_path}/mask.png"
+    # mask_path=f"{output_dir}/combined_matrix/obj/mask.png"
+    print(mask_path)
     mask = imageio.imread(mask_path)
+    print(mask.dtype)
+
     mask = resize(mask, (output_size, output_size), anti_aliasing=False)
-    
+    print(mask[mask>0])
+
+    # unique_vals = np.unique(mask)
+    #转换为png
     for i, row_ in enumerate(rows):
         for j, col_ in enumerate(cols):
             cur_svg_o = f"{output_dir}/object_matrix/row{row_}_col{col_}.svg"
-            print(cur_svg_o)
+            print(f"the cur_svg is {cur_svg_o}cur_svg_o")
             raster_o = scripts_utils.read_svg(cur_svg_o, resize_obj=1, params=params, multiply=1.8, device=device)
-            imageio.imsave(f"{output_dir}/object_matrix/row{row_}_col{col_}.png", raster_o)
+            print(f"raster_o is {raster_o.shape}")
+            print("Saving raster_o shape:", raster_o.shape)
+            print("Saving raster_o dtype:", raster_o.dtype)
+            raster_o_copy = raster_o.copy()
+            raster_o_copy = (raster_o_copy * 255).astype(np.uint8)
+            imageio.imsave(f"{output_dir}/object_matrix/row{row_}_col{col_}.png", raster_o_copy)
 
             cur_svg_b = f"{output_dir}/background_matrix/row{row_}_col{col_}.svg"
             print(cur_svg_b)
             raster_b = scripts_utils.read_svg(cur_svg_b, resize_obj=0, params=params, multiply=1.8, device=device)
-            imageio.imsave(f"{output_dir}/background_matrix/row{row_}_col{col_}.png", raster_b)
+            raster_b_copy = raster_b.copy()
+            raster_b_copy = (raster_b_copy * 255).astype(np.uint8)
+
+            imageio.imsave(f"{output_dir}/background_matrix/row{row_}_col{col_}.png", raster_b_copy)
 
             raster_b[mask == 1] = 1
             raster_b[raster_o != 1] = raster_o[raster_o != 1]
-            imageio.imsave(f"{output_dir}/combined_matrix/row{row_}_col{col_}.png", raster_b)
+            raster_b_copy = raster_b.copy()
+            raster_b_copy = (raster_b_copy * 255).astype(np.uint8)
+            imageio.imsave(f"{output_dir}/combined_matrix/row{row_}_col{col_}.png", raster_b_copy)
 
 
 
@@ -155,11 +186,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--im_name", type=str, default="")
-    parser.add_argument("--layers", type=str, default="2,8,11")
+    #改为2411
+    parser.add_argument("--layers", type=str, default="4")
     args = parser.parse_args()
     layers = args.layers.split(",")
     cols = range(len(layers))
-    rows = range(9)
+    rows = range(1)
 
     output_dir = f"./results_sketches/{args.im_name}"
     if not os.path.exists(f"{output_dir}/object_matrix"):

@@ -132,10 +132,13 @@ class Painter(torch.nn.Module):
 
         else:
             num_paths_exists = 0
+            # print(f"the self.path_svg is {self.path_svg}")
             if self.path_svg != "none":
                 self.canvas_width, self.canvas_height, self.shapes, self.shape_groups = utils.load_svg(self.path_svg)
                 # if you want to add more strokes to existing ones and optimize on all of them
                 num_paths_exists = len(self.shapes)
+                print(self.num_paths)
+                print(num_paths_exists)
                 # if self.width_optim:
                 for path in self.shapes:
                     self.points_init.append(path.points)
@@ -183,14 +186,23 @@ class Painter(torch.nn.Module):
         """
         update self.shapes etc through mlp pass instead of directly (should be updated with the optimizer as well).
         """
+        # print(f"the self.optimize_points_global is {self.optimize_points_global}")
+
         if self.optimize_points_global:
+
             points_vars = self.points_init
+            points_vars = [t.to(self.device) for t in points_vars]
+
+            # for i, tensor in enumerate(points_vars):
+            #     print(f"Tensor {i} is on device: {tensor.device}")
+            # print(len(points_vars))
             # reshape and normalise to [-1,1] range
             points_vars = torch.stack(points_vars).unsqueeze(0).to(self.device)
             points_vars = points_vars / self.canvas_width
             points_vars = 2 * points_vars - 1
             if self.optimize_points:
                 points = self.mlp(points_vars)
+
             else:
                 with torch.no_grad():
                     points = self.mlp(points_vars)
@@ -210,6 +222,7 @@ class Painter(torch.nn.Module):
         all_points = 0.5 * (points + 1.0) * self.canvas_width
         all_points = all_points + eps * torch.randn_like(all_points)
         all_points = all_points.reshape((-1, self.num_paths, self.control_points_per_seg, 2))
+        # print(all_points.requires_grad)
 
         if self.width_optim_global and not self.width_optim:
             self.widths = self.widths.detach()
@@ -664,6 +677,7 @@ class PainterOptimizer:
         
         if self.optimize_points:
             self.points_optim = torch.optim.Adam(points_params, lr=self.points_lr)
+            #这里就是加载points参数
             if self.mlp_points_weights_path != "none" and self.load_points_opt_weights:
                 checkpoint = torch.load(self.mlp_points_weights_path)
                 self.points_optim.load_state_dict(checkpoint['optimizer_state_dict'])

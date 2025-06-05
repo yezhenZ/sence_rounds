@@ -20,6 +20,8 @@ from IPython.display import display
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--multiple_optim", type=int,default=0,
+                    help="Whether to perform multiple rounds of optimization.")
 parser.add_argument("--target_file", type=str,
                     help="target image file, located in <target_images>")
 parser.add_argument("--output_pref", type=str, default="for_arik",
@@ -30,14 +32,15 @@ parser.add_argument("--num_iter", type=int, default=2001,
                     help="number of iterations")
 parser.add_argument("--test_name", type=str, default="test",
                     help="target image file, located in <target_images>")
-                    
+parser.add_argument("--object_or_background_or_all", type=str, default="background")
+
 parser.add_argument("--fix_scale", type=int, default=0,
                     help="if the target image is not squared, it is recommended to fix the scale")
 parser.add_argument("--mask_object", type=int, default=0,
                     help="if the target image contains background, it's better to mask it out")
 parser.add_argument("--num_sketches", type=int, default=1,
                     help="it is recommended to draw 3 sketches and automatically chose the best one")
-parser.add_argument("--multiprocess", type=int, default=1,
+parser.add_argument("--multiprocess", type=int, default=0,
                     help="recommended to use multiprocess if your computer has enough memory")
 parser.add_argument("--mask_object_attention", type=int, default=0,
                     help="if the target image contains background, it's better to mask it out")
@@ -81,7 +84,7 @@ parser.add_argument('-cpu', action='store_true')
 
 parser.add_argument("--eval_interval", type=int, default=100)
 parser.add_argument("--min_eval_iter", type=int, default=100)
-
+parser.add_argument("--im_name", type=str, default="house")
 args = parser.parse_args()
 
 multiprocess = not args.colab and args.num_sketches > 1 and args.multiprocess
@@ -116,7 +119,8 @@ if not torch.cuda.is_available():
     print("CUDA is not configured with GPU, running with CPU instead.")
     print("Note that this will be very slow, it is recommended to use colab.")
 print(f"GPU: {use_gpu}")
-seeds = list(range(0, args.num_sketches * 1000, 1000))
+# seeds = list(range(0, args.num_sketches * 1000, 1000))
+seeds=[0]
 
 
 def run(seed, wandb_name, output_dir, losses_best_normalised, losses_eval_sum):
@@ -151,7 +155,7 @@ def run(seed, wandb_name, output_dir, losses_best_normalised, losses_eval_sum):
                             "--mask_attention", str(args.mask_attention),
                             "--optimize_points", str(args.optimize_points),
                             "--width_loss_type", args.width_loss_type,
-                            "--path_svg", args.path_svg,
+                            "--path_svg", str(args.path_svg),
                             "--mlp_width_weights_path", args.mlp_width_weights_path,
                             "--mlp_points_weights_path", args.mlp_points_weights_path,
                             "--switch_loss", str(args.switch_loss),
@@ -162,7 +166,12 @@ def run(seed, wandb_name, output_dir, losses_best_normalised, losses_eval_sum):
                             "--ratio_loss", str(args.ratio_loss),
                             "--resize_obj", str(args.resize_obj),
                             "--eval_interval", str(args.eval_interval),
-                            "--min_eval_iter", str(args.min_eval_iter)])
+                            "--min_eval_iter", str(args.min_eval_iter),
+                        "--object_or_background_or_all", str(args.object_or_background_or_all),
+                        "--im_name", args.im_name,
+
+                        "--multiple_optim",str(args.multiple_optim)
+                            ])
     if exit_code.returncode:
         sys.exit(1)
 
@@ -184,12 +193,16 @@ if __name__ == "__main__":
     manager = mp.Manager()
     losses_eval_sum = manager.dict() # losses that are not normalised, for the regular run (no simp)
     losses_best_normalised = manager.dict() # save the best normalised loss (for visual simplification)
+    path = f"./results_sketches/{args.im_name}/combine"  # path to take semantic trained models from
 
-    print("multiprocess", multiprocess)
+    # multiple_optim=1
+    # if multiple_optim==1:
+    #     path_svg = f"{path}/best_iter.svg"
+    # print("multiprocess", multiprocess)
     if multiprocess:
         ncpus = 10
         P = mp.Pool(ncpus)  # Generate pool of workers
-
+    print(args.num_sketches)
     for j in range(args.num_sketches):
         seed = seeds[j]
         wandb_name = f"{args.test_name}_seed{seed}"
@@ -212,8 +225,8 @@ if __name__ == "__main__":
         winning_trial = list(sorted_final_n.keys())[0]
         # config = np.load(f"{output_dir}/{winning_trial}/config.npy",
         #                     allow_pickle=True)[()]
-        copyfile(f"{output_dir}/{winning_trial}/svg_logs/init_svg.svg",
-                f"{output_dir}/init.svg")
+        # copyfile(f"{output_dir}/{winning_trial}/svg_logs/init_svg.svg",
+        #         f"{output_dir}/init.svg")
         copyfile(f"{output_dir}/{winning_trial}/best_iter.svg",
                 f"{output_dir}/{winning_trial}_best.svg")
         copyfile(f"{output_dir}/{winning_trial}/points_mlp.pt",
@@ -228,7 +241,7 @@ if __name__ == "__main__":
     else:
         sorted_final = dict(sorted(losses_eval_sum.items(), key=lambda item: item[1]))
         winning_trial = list(sorted_final.keys())[0]
-        print(f"{output_dir}/{winning_trial}")
+        # print(f"{output_dir}/{winning_trial}")
         copyfile(f"{output_dir}/{winning_trial}/svg_logs/init_svg.svg",
                 f"{output_dir}/init.svg")
         copyfile(f"{output_dir}/{winning_trial}/best_iter.svg",

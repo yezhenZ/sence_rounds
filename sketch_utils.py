@@ -21,7 +21,6 @@ from skimage.transform import resize
 import PIL
 from skimage import morphology
 from skimage.measure import label 
-from models.painter_params import MLP, WidthMLP
 from shutil import copyfile
 
 
@@ -448,6 +447,8 @@ def is_in_canvas(canvas_width, canvas_height, path, device):
 
 
 def inference_sketch(args, eps=1e-4):
+    from models.painter_params import MLP, WidthMLP
+
     output_dir = args.output_dir
     mlp_points_weights_path = f"{output_dir}/points_mlp.pt"
     mlp_width_weights_path = f"{output_dir}/width_mlp.pt"
@@ -460,7 +461,7 @@ def inference_sketch(args, eps=1e-4):
     width_ = 1.5
     num_control_points = torch.zeros(1, dtype = torch.int32) + (control_points_per_seg - 2)
     init_widths = torch.ones((num_paths)).to(device) * width_
-    
+    print(num_paths)
     mlp = MLP(num_strokes=num_paths, num_cp=control_points_per_seg).to(device)
     checkpoint = torch.load(mlp_points_weights_path)
     mlp.load_state_dict(checkpoint['model_state_dict'])

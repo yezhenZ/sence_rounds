@@ -1,7 +1,7 @@
 
 import collections
-# import CLIP_.clip as clip
-import clip
+import CLIP_.clip as clip
+# import clip
 import torch
 import torch.nn as nn
 from torchvision import models, transforms

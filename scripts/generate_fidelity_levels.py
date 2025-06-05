@@ -20,39 +20,55 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument("--im_name", type=str, default="")
 parser.add_argument("--layer_opt", type=int, default=4)
-parser.add_argument("--object_or_background", type=str, default="background")
+parser.add_argument("--object_or_background_or_all", type=str, default="background")
 parser.add_argument("--resize_obj", type=int, default=0)
-parser.add_argument("--num_iter", type=int, default=1501)
+parser.add_argument("--num_iter", type=int, default=300)
+parser.add_argument("--path_svg", type=str, default="none")
+parser.add_argument("--num_strokes", type=int, default=64,
+                    help="number of strokes used to generate the sketch, this defines the level of abstraction.")
 args = parser.parse_args()
 
 
 path_to_input_images = "./target_images" # where the input images are located
 output_pref = f"./results_sketches/{args.im_name}/runs"
+combine_path=f"./results_sketches/{args.im_name}/combine"
 
 # if you run on objects, this need to be changed:
 im_filename = f"{args.im_name}_mask.png"
 folder_ = "background"
 gradnorm = 0
 mask_object = 0
-if args.object_or_background == "object":
+num_strokes = 32
+if args.object_or_background_or_all == "object":
     if args.layer_opt != 4:
         gradnorm = 1
     mask_object = 1
     im_filename = f"{args.im_name}.png"
     folder_ = "scene"
+if args.object_or_background_or_all == "all":
+    #其实应该是先combine再有best_iter.svg
+    path_svg = f"{combine_path}/best_iter.svg"
+    im_filename = f"{args.im_name}.png"
+    num_strokes = num_strokes*2
+    folder_ = "scene"
+else:
+    path_svg = "none"
+    #采样点
+
 
 
 # ===================
 # ====== demo =======
 # ===================
-num_strokes = 64
-num_sketches = 2
+
+#xiugai
+num_sketches = 1
 num_iter = args.num_iter
 # ===================
 
 # set the weights for each layer
 clip_conv_layer_weights_int = [0 for k in range(12)]
-if args.object_or_background == "object":
+if args.object_or_background_or_all == "object":
     # we combine two layers if we train on objects
     clip_conv_layer_weights_int[4] = 0.5
 clip_conv_layer_weights_int[args.layer_opt] = 1
@@ -60,8 +76,8 @@ clip_conv_layer_weights_str = [str(j) for j in clip_conv_layer_weights_int]
 clip_conv_layer_weights = ','.join(clip_conv_layer_weights_str)
 
 file_ = f"{path_to_input_images}/{folder_}/{im_filename}"
-test_name = f"{args.object_or_background}_l{args.layer_opt}_{os.path.splitext(im_filename)[0]}"
-print(test_name)
+test_name = f"{args.object_or_background_or_all}_l{args.layer_opt}_{os.path.splitext(im_filename)[0]}"
+print(f"now is  {args.object_or_background_or_all}")
 
 start_time = time.time()
 sp.run(["python", 
@@ -76,6 +92,10 @@ sp.run(["python",
         "--gradnorm", str(gradnorm),
         "--resize_obj", str(args.resize_obj),
         "--eval_interval", str(50),
+        "--path_svg", path_svg,
+        "--num_strokes", str(num_strokes),
+        "--object_or_background_or_all",str(args.object_or_background_or_all),
+        "--im_name",args.im_name,
         "--min_eval_iter", str(400)])
 total_time = time.time() - start_time
 print(f"Time for one sketch [{total_time:.3f}] seconds")

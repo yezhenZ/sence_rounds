@@ -22,7 +22,10 @@ def parse_arguments():
     # =================================
     # ============ general ============
     # =================================
+
     parser.add_argument("target", help="target image path")
+    parser.add_argument("--im_name", type=str, default="")
+
     parser.add_argument("--output_dir", type=str,
                         help="directory to save the output images and loss")
     parser.add_argument("--path_svg", type=str, default="none",
@@ -67,7 +70,9 @@ def parse_arguments():
     parser.add_argument("--dilated_mask", type=int, default=0)
     parser.add_argument("--mask_cls", type=str, default="none", help="can be none|only_cls|cls_out")
     parser.add_argument("--mask_attention", type=int, default=0, help="mask during initialisation")
-
+    parser.add_argument("--multiple_optim", type=int, default=1,
+                        help="Whether to perform multiple rounds of optimization.")
+    parser.add_argument("--object_or_background_or_all", type=str, default="background")
 
     # =================================
     # ======== strokes params =========

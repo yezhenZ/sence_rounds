@@ -48,7 +48,8 @@ if args.object_or_background == "object":
 # =========== real ============
 # =============================
 num_iter = 401
-num_sketches = 2
+#该
+num_sketches = 1
 # =============================
 
 
@@ -86,6 +87,7 @@ for i, ratio in enumerate(ratios):
     if not os.path.exists(f"{output_pref}/{test_name}/width_mlp.pt"):
         print("**** test_name ****")
         print(test_name)
+        print(i)
         if i == 0:
             # in this case we use the semantic mlp (first row) and we don't want its optimizer
             mlp_width_weights_path = "none"
